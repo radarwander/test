@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  sales
+}
+
+enum LeadStatus {
+  new
+  contacted
+  qualified
+  disqualified
+  converted
+}
+
+enum OpportunityStage {
+  prospecting
+  proposal
+  negotiation
+  won
+  lost
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  role         Role
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+
+  customers    Customer[]
+  leads        Lead[]
+  opportunities Opportunity[]
+  logs         ActivityLog[] @relation("ActorLogs")
+
+  @@map("users")
+}
+
+model Customer {
+  id            String        @id @default(uuid())
+  name          String
+  industry      String?
+  level         String?
+  ownerId       String        @map("owner_id")
+  phone         String?
+  email         String?
+  address       String?
+  remark        String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  deletedAt     DateTime?     @map("deleted_at")
+
+  owner         User          @relation(fields: [ownerId], references: [id])
+  leads         Lead[]
+  opportunities Opportunity[]
+
+  @@map("customers")
+}
+
+model Lead {
+  id         String      @id @default(uuid())
+  name       String
+  source     String
+  status     LeadStatus  @default(new)
+  phone      String?
+  email      String?
+  ownerId    String      @map("owner_id")
+  customerId String?     @map("customer_id")
+  remark     String?
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  deletedAt  DateTime?   @map("deleted_at")
+
+  owner      User        @relation(fields: [ownerId], references: [id])
+  customer   Customer?   @relation(fields: [customerId], references: [id])
+
+  @@map("leads")
+}
+
+model Opportunity {
+  id          String           @id @default(uuid())
+  title       String
+  customerId  String           @map("customer_id")
+  ownerId     String           @map("owner_id")
+  stage       OpportunityStage @default(prospecting)
+  amount      Decimal          @db.Decimal(12, 2)
+  closeDate   DateTime?        @map("close_date")
+  probability Int?
+  remark      String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
+
+  customer    Customer         @relation(fields: [customerId], references: [id])
+  owner       User             @relation(fields: [ownerId], references: [id])
+
+  @@map("opportunities")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  actorId    String   @map("actor_id")
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  action     String
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor      User     @relation("ActorLogs", fields: [actorId], references: [id])
+
+  @@map("activity_logs")
+}
